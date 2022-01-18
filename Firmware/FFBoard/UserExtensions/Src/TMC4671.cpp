@@ -55,7 +55,7 @@ TMC4671::TMC4671(SPIPort& spiport,OutputPin cspin,uint8_t address) :CommandHandl
 	spiConfig.peripheral.CLKPolarity = SPI_POLARITY_HIGH;
 	spiConfig.peripheral.CLKPhase = SPI_PHASE_2EDGE;
 	spiConfig.peripheral.NSS = SPI_NSS_SOFT;
-	spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+	spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;//TODO
 	spiConfig.peripheral.FirstBit = SPI_FIRSTBIT_MSB;
 	spiConfig.peripheral.TIMode = SPI_TIMODE_DISABLE;
 	spiConfig.peripheral.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -186,6 +186,38 @@ bool TMC4671::initialize(){
 //	if(state == TMC_ControlState::uninitialized){
 //		state = TMC_ControlState::Init_wait;
 //	}
+
+	TMC4671HardwareTypeConf* hwconf = &conf.hwconf;
+	if ( hwconf->hwVersion == TMC_HW_Ver::TMC6100_BOB ){
+		// Initialize TMC6100 according to https://www.trinamic.com/fileadmin/assets/Products/Eval_Documents/TMC4671_TMC6100-BOB_v1.00.pdf
+
+		//CommandHandler::broadcastCommandReply(CommandReply("Aligned successfully",1), (uint32_t)TMC4671_commands::encalign, CMDtype::get);
+
+		//OutputPin t1 = spiPort.getCsPin();
+		OutputPin t1 = spiConfig.cs;
+
+		OutputPin t3 = OutputPin(*SPI1_SS3_GPIO_Port, SPI1_SS3_Pin);
+		updateCSPin( t3 );
+
+		writeReg(0x00, 0b1000100); //enable driver, disable singleline, enable faultdirect, disable current amplifier
+		writeReg(0x0A, 0b00000000000000000100); //BBM clks 4, OTselect 00, DRVstrength 00
+		writeReg(0x01, 0x7FFF); //clear all status flags
+
+		if( readReg(0x09) != 0b10011000000010000011000000110){
+			Error commError = Error(ErrorCode::tmcCommunicationError, ErrorType::warning, "TMC6100 not responding");
+			ErrorHandler::addError(commError);
+			while(1);
+		}
+
+		updateCSPin( t1 );
+
+
+	}
+
+
+
+
+
 	// Check if a TMC4671 is active and replies correctly
 	if(!pingDriver()){
 		ErrorHandler::addError(communicationError);
@@ -1821,7 +1853,23 @@ void TMC4671::restoreEncHallMisc(uint16_t val){
 void TMC4671::setHwType(TMC_HW_Ver type){
 	//TMC4671HardwareTypeConf newHwConf;
 	switch(type){
-	case TMC_HW_Ver::v1_2_2_TMCS:
+	case TMC_HW_Ver::TMC6100_BOB:
+	{
+		TMC4671HardwareTypeConf newHwConf = {
+			.hwVersion = TMC_HW_Ver::TMC6100_BOB,
+			.adcOffset = 1000,
+			.thermistor_R2 = 1500,
+			.thermistor_R = 4700,
+			.thermistor_Beta = 1900, //close enough, BOB acutally has a third resistor
+			.temperatureEnabled = true,
+			.temp_limit = 50,		// set low value for testing
+			.currentScaler = 2.5 / (0x7fff * 20.0 * 0.003), // w. 20x 3mOhm sensor
+			.brakeLimLow = 50700,   //not currently in use
+			.brakeLimHigh = 50900,
+		};
+		this->conf.hwconf = newHwConf;
+	break;
+	}case TMC_HW_Ver::v1_2_2_TMCS:
 	{
 		TMC4671HardwareTypeConf newHwConf = {
 			.hwVersion = TMC_HW_Ver::v1_2_2_TMCS,
