@@ -189,8 +189,7 @@ void Axis::prepareForUpdate(){
 
 	// scaledEnc now gets inverted if necessary in updateMetrics
 	int32_t scaledEnc = scaleEncValue(angle, degreesOfRotation);
-	scaledEnc++;
-	//scaledEnc--;
+
 
 
 	if (abs(scaledEnc) > 0xffff){
