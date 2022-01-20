@@ -172,7 +172,7 @@ void Axis::prepareForUpdate(){
 		return;
 	}
 
-	//if (!drv->motorReady()) return;
+	if (!drv->motorReady()) return;
 
 	float angle = getEncAngle(this->drv->getEncoder());
 
@@ -189,6 +189,9 @@ void Axis::prepareForUpdate(){
 
 	// scaledEnc now gets inverted if necessary in updateMetrics
 	int32_t scaledEnc = scaleEncValue(angle, degreesOfRotation);
+	scaledEnc++;
+	//scaledEnc--;
+
 
 	if (abs(scaledEnc) > 0xffff){
 		// We are way off. Shut down
