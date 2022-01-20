@@ -55,8 +55,7 @@ TMC4671::TMC4671(SPIPort& spiport,OutputPin cspin,uint8_t address) :CommandHandl
 	spiConfig.peripheral.CLKPolarity = SPI_POLARITY_HIGH;
 	spiConfig.peripheral.CLKPhase = SPI_PHASE_2EDGE;
 	spiConfig.peripheral.NSS = SPI_NSS_SOFT;
-	//spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-	spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+	spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
 	spiConfig.peripheral.FirstBit = SPI_FIRSTBIT_MSB;
 	spiConfig.peripheral.TIMode = SPI_TIMODE_DISABLE;
 	spiConfig.peripheral.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -192,7 +191,6 @@ bool TMC4671::initialize(){
 	if ( hwconf->hwVersion == TMC_HW_Ver::TMC6100_BOB ){
 		// Initialize TMC6100 according to https://www.trinamic.com/fileadmin/assets/Products/Eval_Documents/TMC4671_TMC6100-BOB_v1.00.pdf
 
-		/*
 		spiConfig.peripheral.Mode = SPI_MODE_MASTER;
 		spiConfig.peripheral.Direction = SPI_DIRECTION_2LINES;
 		spiConfig.peripheral.DataSize = SPI_DATASIZE_8BIT;
@@ -209,11 +207,8 @@ bool TMC4671::initialize(){
 		spiPort.takeSemaphore();
 		spiPort.configurePort(&spiConfig.peripheral);
 		spiPort.giveSemaphore();
-		 */
 
-		//OutputPin t1 = spiPort.getCsPin();
 		OutputPin t1 = spiConfig.cs;
-
 		OutputPin t3 = OutputPin(*SPI1_SS3_GPIO_Port, SPI1_SS3_Pin);
 		updateCSPin( t3 );
 
@@ -221,18 +216,13 @@ bool TMC4671::initialize(){
 		writeReg(0x0A, 0b00000000000000000100); //BBM clks 4, OTselect 00, DRVstrength 00
 		writeReg(0x01, 0x7FFF); //clear all status flags
 
-
 		if( readReg(0x09) != 0b10011000000010000011000000110){
 			Error commError = Error(ErrorCode::tmcCommunicationError, ErrorType::warning, "TMC6100 not responding");
 			ErrorHandler::addError(commError);
 			while(1);
 		}
-
 		updateCSPin( t1 );
 	}
-
-
-
 
 
 	// Check if a TMC4671 is active and replies correctly
