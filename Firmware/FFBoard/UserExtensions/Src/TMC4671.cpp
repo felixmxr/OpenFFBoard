@@ -191,31 +191,22 @@ bool TMC4671::initialize(){
 	if ( hwconf->hwVersion == TMC_HW_Ver::TMC6100_BOB ){
 		// Initialize TMC6100 according to https://www.trinamic.com/fileadmin/assets/Products/Eval_Documents/TMC4671_TMC6100-BOB_v1.00.pdf
 
-		spiConfig.peripheral.Mode = SPI_MODE_MASTER;
-		spiConfig.peripheral.Direction = SPI_DIRECTION_2LINES;
-		spiConfig.peripheral.DataSize = SPI_DATASIZE_8BIT;
-		spiConfig.peripheral.CLKPolarity = SPI_POLARITY_HIGH;
-		spiConfig.peripheral.CLKPhase = SPI_PHASE_2EDGE;
-		spiConfig.peripheral.NSS = SPI_NSS_SOFT;
-		spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
-		spiConfig.peripheral.FirstBit = SPI_FIRSTBIT_MSB;
-		spiConfig.peripheral.TIMode = SPI_TIMODE_DISABLE;
-		spiConfig.peripheral.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-		spiConfig.peripheral.CRCPolynomial = 10;
-		spiConfig.cspol = true;
-
-		spiPort.takeSemaphore();
-		spiPort.configurePort(&spiConfig.peripheral);
-		spiPort.giveSemaphore();
+		this->spiConfig.peripheral.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+		spiPort.configurePort(&this->spiConfig.peripheral);
 
 		OutputPin t1 = spiConfig.cs;
 		OutputPin t3 = OutputPin(*SPI1_SS3_GPIO_Port, SPI1_SS3_Pin);
 		updateCSPin( t3 );
 
+		writeReg(0x01, 0x7FFF); //clear all status flags
 		writeReg(0x00, 0b1000100); //enable driver, disable singleline, enable faultdirect, disable current amplifier
 		writeReg(0x0A, 0b00000000000000000100); //BBM clks 4, OTselect 00, DRVstrength 00
-		writeReg(0x01, 0x7FFF); //clear all status flags
 
+		if( readReg(0x00) != 0b1000100 ){
+			Error commError = Error(ErrorCode::tmcCommunicationError, ErrorType::warning, "TMC6100 not responding");
+			ErrorHandler::addError(commError);
+			while(1);
+		}
 		if( readReg(0x09) != 0b10011000000010000011000000110){
 			Error commError = Error(ErrorCode::tmcCommunicationError, ErrorType::warning, "TMC6100 not responding");
 			ErrorHandler::addError(commError);
